@@ -1,53 +1,114 @@
-#**Finding Lane Lines on the Road** 
-[![Udacity - Self-Driving Car NanoDegree](https://s3.amazonaws.com/udacity-sdc/github/shield-carnd.svg)](http://www.udacity.com/drive)
+# Finding Lane Lines on the Road
 
-<img src="examples/laneLines_thirdPass.jpg" width="480" alt="Combined Image" />
+Author: **Lyuboslav Petrov**
 
-Overview
+[//]: # (Image References)
+
+[grayscale]: ./test_images_output/grayscale_example.jpg "Grayscale"
+[blur_thresh]: ./test_images_output/step_2.jpg "Blur and Threshold"
+[roi]: ./test_images_output/step_3.jpg "Region of Interest Mask applied"
+[edges_lines]: ./test_images_output/step_4.jpg "Edges and Hough Lines"
+[result]: ./test_images_output/step_5.jpg "Final"
+[RGB]: ./test_images_output/RGB.jpg "RGB Colorspace"
+[YCBCR]: ./test_images_output/YCBCR.jpg "YCbCr"
+[Angle]: ./test_images_output/AngleA.jpg "Angle"
+
 ---
 
-When we drive, we use our eyes to decide where to go.  The lines on the road that show us where the lanes are act as our constant reference for where to steer the vehicle.  Naturally, one of the first things we would like to do in developing a self-driving car is to automatically detect lane lines using an algorithm.
+### Introduction
 
-In this project you will detect lane lines in images using Python and OpenCV.  OpenCV means "Open-Source Computer Vision", which is a package that has many useful tools for analyzing images.  
+One of the most distinctive features of any road is the markings used for guidance of drivers. Naturally, one of the first features to be discerned in a computer vision based self-driving car are **lane-markings**.
 
-To complete the project, two files will be submitted: a file containing project code and a file containing a brief write up explaining your solution. We have included template files to be used both for the [code](https://github.com/udacity/CarND-LaneLines-P1/blob/master/P1.ipynb) and the [writeup](https://github.com/udacity/CarND-LaneLines-P1/blob/master/writeup_template.md).The code file is called P1.ipynb and the writeup template is writeup_template.md 
-
-To meet specifications in the project, take a look at the requirements in the [project rubric](https://review.udacity.com/#!/rubrics/322/view)
-
-
-Creating a Great Writeup
----
-For this project, a great writeup should provide a detailed response to the "Reflection" section of the [project rubric](https://review.udacity.com/#!/rubrics/322/view). There are three parts to the reflection:
-
-1. Describe the pipeline
-
-2. Identify any shortcomings
-
-3. Suggest possible improvements
-
-We encourage using images in your writeup to demonstrate how your pipeline works.  
-
-All that said, please be concise!  We're not looking for you to write a book here: just a brief description.
-
-You're not required to use markdown for your writeup.  If you use another method please just submit a pdf of your writeup. Here is a link to a [writeup template file](https://github.com/udacity/CarND-LaneLines-P1/blob/master/writeup_template.md). 
-
-
-The Project
 ---
 
-## If you have already installed the [CarND Term1 Starter Kit](https://github.com/udacity/CarND-Term1-Starter-Kit/blob/master/README.md) you should be good to go!   If not, you should install the starter kit to get started on this project. ##
+### Method
 
-**Step 1:** Set up the [CarND Term1 Starter Kit](https://classroom.udacity.com/nanodegrees/nd013/parts/fbf77062-5703-404e-b60c-95b78b2f3f9e/modules/83ec35ee-1e02-48a5-bdb7-d244bd47c2dc/lessons/8c82408b-a217-4d09-b81d-1bda4c6380ef/concepts/4f1870e0-3849-43e4-b670-12e6f2d4b7a7) if you haven't already.
+The markings in this project where infered using the following pipeline:
 
-**Step 2:** Open the code in a Jupyter Notebook
+#### Step 1: Aquire image, convert it to grayscale and equalize-out the image using the opencv built-in histogram equalization routine
 
-You will complete the project code in a Jupyter notebook.  If you are unfamiliar with Jupyter Notebooks, check out <A HREF="https://www.packtpub.com/books/content/basics-jupyter-notebook-and-python" target="_blank">Cyrille Rossant's Basics of Jupyter Notebook and Python</A> to get started.
+![][grayscale]
 
-Jupyter is an Ipython notebook where you can run blocks of code and see results interactively.  All the code for this project is contained in a Jupyter notebook. To start Jupyter in your browser, use terminal to navigate to your project directory and then run the following command at the terminal prompt (be sure you've activated your Python 3 carnd-term1 environment as described in the [CarND Term1 Starter Kit](https://github.com/udacity/CarND-Term1-Starter-Kit/blob/master/README.md) installation instructions!):
+#### Step 2: Apply a Gaussian blur for noise removal and perform a binary threshold
 
-`> jupyter notebook`
+![][blur_thresh]
 
-A browser window will appear showing the contents of the current directory.  Click on the file called "P1.ipynb".  Another browser window will appear displaying the notebook.  Follow the instructions in the notebook to complete the project.  
+#### Step 3: Extract the Region of interest using a trapezoid polygon
+* Top threshold is set to 52% of image height
+* Bottom threshold is the bottom border
+* Left-Top edge is set to 48% of image width
+* Rigth-Top edge is set to 52% of image width
+* Left Bottom is set to 5% image width
+* Right-Bottom is set to 95% image width
 
-**Step 3:** Complete the project and submit both the Ipython notebook and the project writeup
+![][roi]
 
+#### Step4: Convert ROI to edge image and apply a hough transform to identify lines
+
+![][edges_lines]
+
+#### Step5:
+The lines detected through the Hough transform are now iterated through to:
+* Filter line candidates by a slope threshold (abs(dy/dx) >= 0.44)
+* Segment left from right lines by positive and negative slopes respectively
+* Filter out noise by extracting all slopes that fall within the median +- one standard deviation
+* Using the gathered information get good line candidates and make a first degree polynomial fit
+* Finally, find the crossection of the lines found and draw them to the image
+
+![][result]
+
+---
+
+### Shortcommings
+
+The algorithm detailed is very unstable and assumes:
+
+1. A given image color distribution - all images used for tests have a very similar spectrum
+2. The camera is mounted at the centre of the car. Otherwise the chosen hard-coded ROI would be useless
+3. The road is of a certain color, as well as the lane markings - dark and bright, respectively
+    It can be seen that the algorithm brakes at the '*challange*' when a brighter section of the tarmac is entered.
+4. The road is straight - The results from the '*challange*' task prove convinsingly that the straight-road assumption is flawed.
+
+---
+
+### Potential Improvements
+
+Every of the mentioned shortcommings is a good candidate for improvements.
+
+---
+
+It has been attempted in this excercise to enable parametric polynomial inference of line-markings, however tests showed that the problem is easily overfitted and results are worst than a 1D polynomial fit.
+
+---
+
+Multiple colorspaces where tested. One promising candidate for detection of obstacles (i.e. pedestrians) on the road is the Cr-AngleA colorspace, that is derived from a YCbCr colorspace, which attempts a quasi 3D representation of the 2D image.
+
+The RGB colorspace does not convey information on the orientation of surfaces in the image, whereas the Cb and Cr channels of the YCbCr colorspace carry this information, which can further be reduced to an Angle image in Cr-AngleA colorspace using:
+
+        Cr = 0.5R - 0.419G - 0.08B + 128
+        L = sqrt(R^2+G^2+B^2)
+        AngleA = acos(B/L)
+
+As can be seen from the results below, the Cr-AngleA colorspace does make perpendicular, with respect to the camera's frame of reference, objects more 'visible' than the plain r-g-b channels.
+
+#### R-G-B colorspace
+
+
+
+![][RGB]
+
+#### Y-Cb-Cr colorspace
+
+
+![][YCBCR]
+
+#### Cr-AngleA colorspace
+
+![][Angle]
+---
+
+---
+
+### Conclusions
+
+The attempted lane segmentation excercise showed the difficulties and peculiarities in the topic, while scratching the surface of Computer Vision in the Self Driving Car's domain.
